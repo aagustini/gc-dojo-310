@@ -2,8 +2,8 @@
 # only works with the Java extension of yacc: byacc/j
 
 JFLEX  = java -jar JFlex.jar
-#BYACCJ = ./yacc.linux -tv -J
-BYACCJ = byaccj -tv -J
+BYACCJ = ./yacc.linux -tv -J
+#BYACCJ = byaccj -tv -J
 JAVAC  = javac
 
 SRCJ = ClasseID.java TS_entry.java TabSimb.java BibliotecaIO.java
