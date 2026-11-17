@@ -33,11 +33,12 @@
 
 %token ID, INT, FLOAT, BOOL, NUM, LIT, VOID, MAIN, READ, WRITE, RETURN
 %token IF, ELSE, WHILE, TRUE, FALSE
-%token EQ, LEQ, GEQ, NEQ, AND, OR
+%token EQ, LEQ, GEQ, NEQ, AND, OR, EQPLUS, PLUSPLUS, MINUSMINUS, SWAP
 
 %nonassoc IFX
 %nonassoc ELSE
 
+%right '=' EQPLUS
 %right '?' ':'
 %left OR
 %left AND
@@ -45,6 +46,7 @@
 %left '+' '-'
 %left '*' '/' '%'
 %right '!' UMINUS
+%nonassoc PLUSPLUS MINUSMINUS 
 
 %type <sval> ID LIT NUM
 %type <ival> type
@@ -108,8 +110,7 @@ lcmd    : lcmd cmd
 
 cmd     : '{' lcmd '}'
         | ';'
-
-        | ID '=' exp ';'                   { gcAtribui($1); }       // atribuição: COMANDO
+        | exp ';'                  
 
         | ID '('                           { iniciaChamada($1); }   // chamada como comando
           lArgOpc ')' ';'                  { gcChamada(true); }
@@ -127,6 +128,7 @@ cmd     : '{' lcmd '}'
                                              gcDesviaSeFalso(pRot.peek()); }
           cmd restoIf
 
+    //    | SWAP ID ',' ID ';'                { gcCarregaVar($2); gcCarregaVar($3); gcAtribui($2);gcPOP gcAtribui($3);}
         | WHILE                            { pRot.push(novosRotulos(2));
                                              geraRot(pRot.peek()); }       // início
           '(' exp ')'                      { gcDesviaSeFalso(pRot.peek() + 1); }  // saída
@@ -143,11 +145,11 @@ restoIf : ELSE                             { gcJmp(pRot.peek() + 1);
 /* ========================== expressões =========================== */
 
 exp     : NUM                              { gera("PUSHL $%s", $1); }
+        | ID '=' exp                       { gcAtribui($1); }   
+        | ID EQPLUS exp                    { gcAtribuiPlus($1); }     
         | TRUE                             { gera("PUSHL $1"); }
         | FALSE                            { gera("PUSHL $0"); }
         | ID                               { gcCarregaVar($1); }
-        | ID '('                           { iniciaChamada($1); }
-          lArgOpc ')'                      { gcChamada(false); }
         | '(' exp ')'
         | '!' exp                          { gcExpNot(); }
         | '-' exp  %prec UMINUS            { gcExpNeg(); }
@@ -167,6 +169,11 @@ exp     : NUM                              { gera("PUSHL $%s", $1); }
 
         | exp OR  exp                      { gcExpLog(OR); }
         | exp AND exp                      { gcExpLog(AND); }
+        | PLUSPLUS ID                      { gera("PUSHL $1"); gcCarregaVar($2); gcExpArit('+'); gcAtribui($2);}
+        | ID PLUSPLUS                      { gcCarregaVar($1); gera("PUSHL $1"); gcCarregaVar($1); gcExpArit('+'); gcAtribui($1); gera("POPL %%EAX");}
+        | MINUSMINUS ID                    { gcCarregaVar($2); gera("PUSHL $1"); gcExpArit('-'); gcAtribui($2);}
+        | ID MINUSMINUS                    { gcCarregaVar($1);gcCarregaVar($1); gera("PUSHL $1"); gcExpArit('-'); gcAtribui($1); gera("POPL %%EAX");}
+
 
         | exp '?'                          { pRot.push(novosRotulos(2));
                                              gcDesviaSeFalso(pRot.peek()); }
@@ -419,6 +426,17 @@ lArg    : lArg ',' exp                     { pArgs.push(pArgs.pop() + 1); }
     TS_entry v = buscaVar(id);
     if (v == null || !acessoImplementado(v)) return;
     gera("POPL %%EDX");
+    gera("PUSHL %%EDX");
+    gera("MOVL %%EDX, %s", v.getOperando());
+  }
+  
+  void gcAtribuiPlus(String id) {
+    TS_entry v = buscaVar(id);
+    if (v == null || !acessoImplementado(v)) return;
+    gcCarregaVar(id);
+    gcExpArit('+');
+    gera("POPL %%EDX");
+    gera("PUSHL %%EDX");
     gera("MOVL %%EDX, %s", v.getOperando());
   }
 
