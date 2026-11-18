@@ -32,8 +32,8 @@
 %}
 
 %token ID, INT, FLOAT, BOOL, NUM, LIT, VOID, MAIN, READ, WRITE, RETURN
-%token IF, ELSE, WHILE, TRUE, FALSE
-%token EQ, LEQ, GEQ, NEQ, AND, OR, EQPLUS, PLUSPLUS, MINUSMINUS, SWAP
+%token IF, ELSE, WHILE, FOR, TRUE, FALSE, BREAK, CONTINUE, DO
+%token EQ, LEQ, GEQ, NEQ, AND, OR, EQPLUS, PLUSPLUS, MINUSMINUS, SWAP, AIF, TIMES
 
 %nonassoc IFX
 %nonassoc ELSE
@@ -128,13 +128,38 @@ cmd     : '{' lcmd '}'
                                              gcDesviaSeFalso(pRot.peek()); }
           cmd restoIf
 
-    //    | SWAP ID ',' ID ';'                { gcCarregaVar($2); gcCarregaVar($3); gcAtribui($2);gcPOP gcAtribui($3);}
-        | WHILE                            { pRot.push(novosRotulos(2));
-                                             geraRot(pRot.peek()); }       // início
-          '(' exp ')'                      { gcDesviaSeFalso(pRot.peek() + 1); }  // saída
-          cmd                              { gcJmp(pRot.peek());
-                                             geraRot(pRot.pop() + 1); }
+        | SWAP ID ',' ID ';'                { 
+                                            gcCarregaVar($2); 
+                                        gcCarregaVar($4); 
+                                      gcAtribui($2); 
+                                      gera("POPL %%EAX"); 
+                                              gcAtribui($4);  
+                                      gera("POPL %%EAX");}
+
+        | WHILE                            { pRotRep.push(novosRotulos(2));
+                                             geraRot(pRotRep.peek()); }       // início
+          '(' exp ')'                      { gcDesviaSeFalso(pRotRep.peek() + 1); }  // saída
+          cmd                              { gcJmp(pRotRep.peek());
+                                             geraRot(pRotRep.pop() + 1); }
+      
+        | DO                              { pRotRep.push(novosRotulos(2));
+                                            geraRot(pRotRep.peek()); }
+        cmd                            
+        WHILE '(' exp ')'                 {         // início
+                                        gcDesviaSeVerdadeiro(pRotRep.peek());  // saída
+                                        geraRot(pRotRep.pop() + 1); 
+                                        }
+          
         ;
+        cmd
+        | BREAK                           { gcJmp(pRotRep.peek() + 1);}
+        | CONTINUE                          { gcJmp(pRotRep.peek());}  
+        
+        | TIMES exp                       { geraRotRep(novosRotulos(2)); gera("POPL %%EAX");
+                                            gera("PUSHL %%EAX"); gera("PUSHL %%EAX"); 
+                                          }
+          cmd                             { gcDesviaSeFalso(); }
+          ;                                 
 
 restoIf : ELSE                             { gcJmp(pRot.peek() + 1);
                                              geraRot(pRot.peek()); }
@@ -410,6 +435,7 @@ lArg    : lArg ',' exp                     { pArgs.push(pArgs.pop() + 1); }
 
   private int proxRot = 1;
   private final Stack<Integer> pRot = new Stack<>();   // if, while e ?: (2 rótulos cada)
+  private final Stack<Integer> pRotRep = new Stack<>();   // if, while e ?: (2 rótulos cada)
 
   String rot(int r) { return String.format("rot_%02d", r); }
 
@@ -419,6 +445,12 @@ lArg    : lArg ',' exp                     { pArgs.push(pArgs.pop() + 1); }
     gera("POPL %%EAX");
     gera("CMPL $0, %%EAX");
     gera("JE %s", rot(r));
+  }
+
+  void gcDesviaSeVerdadeiro(int r) {
+    gera("POPL %%EAX");
+    gera("CMPL $0, %%EAX");
+    gera("JNE %s", rot(r));
   }
 
   /** id = exp ;  — comando: o valor é desempilhado e armazenado. */

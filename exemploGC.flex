@@ -80,7 +80,13 @@ else   { return Parser.ELSE; }
 true   { return Parser.TRUE; }
 false   { return Parser.FALSE; }
 return { return Parser.RETURN; }
-
+do {return Parser.DO;}
+swap {return Parser.SWAP; }
+break {return Parser.BREAK; }
+continue {return Parser.CONTINUE; }
+for {return Parser.FOR;}
+aif {return Parser.AIF;}
+times {return Parser.TIMES;}
 
 
 [a-zA-Z_][a-zA-Z0-9_]* { yyparser.yylval = new ParserVal(yytext());

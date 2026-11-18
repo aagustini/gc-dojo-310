@@ -1,2 +1,4 @@
-Erro: erro sintatico proximo de 'a'  linha: 10
-1 erro(s) - codigo nao gerado.
+a = 2
+b = 1
+a = 2
+bool trocado
